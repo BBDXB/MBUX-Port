@@ -1,0 +1,41 @@
+name: MBUX APK 云编译
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 11 (AGP 4.0 需要)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - name: 安装 SDK 29 + Build-Tools + NDK 21 + CMake
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager --install \
+            "platforms;android-29" \
+            "build-tools;29.0.3" \
+            "ndk;21.3.6528147" \
+            "cmake;3.10.2.4988404"
+
+      - name: 编译 Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          ANDROID_SDK_ROOT: ${{ runner.os == 'Linux' && '/usr/local/lib/android/sdk' || '' }}
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mbux-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
